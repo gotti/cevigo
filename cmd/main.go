@@ -1,77 +1,56 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"io"
+	"gotti/cevigo/pkg/cevioai"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
-
-	"github.com/go-ole/go-ole"
-	"github.com/go-ole/go-ole/oleutil"
+	"strings"
 )
 
-type component struct {
-	Id    string
-	Name  string
-	Value uint
-}
-
-type components struct {
-	Length int
-}
-
 type Talker struct {
-	*ole.IDispatch
-	parameters *map[string]*parameter
+	cevioai.ITalker2V40
 }
 
 type speakHandler struct {
 	talker Talker
 }
 
-type parameter struct {
-	Name  string
-	Value interface{}
-}
-
-func (param *parameter) set(value interface{}) {
-	param.Value = value
-}
-
-func (talker *Talker) setIntParameter(param string, value string) error {
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-	if (*(talker.parameters))[param].Value.(int) != i {
-		talker.PutProperty("ToneScale", i)
-		print((*(talker.parameters))[param].Name)
-		_, err = talker.PutProperty((*(talker.parameters))[param].Name, i)
-		if err != nil {
-			log.Fatal(err)
-			return err
-		}
-		(*(talker.parameters))[param].set(i)
-	}
-	return nil
+var defaultParameters = map[string]int{
+	"Volume":    50,
+	"Speed":     50,
+	"Tone":      50,
+	"ToneScale": 50,
 }
 
 func (talker *Talker) setParameters(url *url.Values) error {
 	cast := url.Get("cast")
 	text := url.Get("text")
 	fmt.Println("Cast:", cast, "Text:", text)
-	_, err := talker.PutProperty("Cast", cast)
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
 	speed := url.Get("speed")
+	volume := url.Get("volume")
+	talker.SetCast("さとうささら")
+	if volume != "" {
+		v, err := strconv.Atoi(volume)
+		if err != nil {
+			return err
+		}
+		err = talker.SetSpeed(v)
+		if err != nil {
+			log.Fatal(err)
+			return err
+		}
+	}
 	if speed != "" {
-		err := talker.setIntParameter("speed", speed)
+		v, err := strconv.Atoi(speed)
+		if err != nil {
+			return err
+		}
+		err = talker.SetSpeed(v)
 		if err != nil {
 			log.Fatal(err)
 			return err
@@ -79,7 +58,11 @@ func (talker *Talker) setParameters(url *url.Values) error {
 	}
 	tone := url.Get("tone")
 	if tone != "" {
-		err := talker.setIntParameter("tone", tone)
+		v, err := strconv.Atoi(tone)
+		if err != nil {
+			return err
+		}
+		err = talker.SetTone(v)
 		if err != nil {
 			log.Fatal(err)
 			return err
@@ -87,7 +70,11 @@ func (talker *Talker) setParameters(url *url.Values) error {
 	}
 	alpha := url.Get("alpha")
 	if alpha != "" {
-		err := talker.setIntParameter("alpha", alpha)
+		v, err := strconv.Atoi(alpha)
+		if err != nil {
+			return err
+		}
+		err = talker.SetTone(v)
 		if err != nil {
 			log.Fatal(err)
 			return err
@@ -95,7 +82,11 @@ func (talker *Talker) setParameters(url *url.Values) error {
 	}
 	toneScale := url.Get("toneScale")
 	if toneScale != "" {
-		err := talker.setIntParameter("toneScale", toneScale)
+		v, err := strconv.Atoi(toneScale)
+		if err != nil {
+			return err
+		}
+		err = talker.SetTone(v)
 		if err != nil {
 			log.Fatal(err)
 			return err
@@ -106,48 +97,124 @@ func (talker *Talker) setParameters(url *url.Values) error {
 	ikari := url.Get("ikari")
 	kanasimi := url.Get("kanasimi")
 	if genki != "" || hutu != "" || ikari != "" || kanasimi != "" {
-		o, err := talker.GetProperty("Components")
+		o, err := talker.GetComponents()
 		if err != nil {
 			log.Fatal(err)
 		}
-		a := o.ToIDispatch()
 		if genki != "" {
-			b, _ := a.GetProperty("ByName", "元気")
-			d := b.ToIDispatch()
+			b, err := o.ByName("元気")
+			if err != nil {
+				return err
+			}
 			i, _ := strconv.Atoi(genki)
-			_, err = d.PutProperty("Value", i)
+			err = b.SetValue(i)
+			if err != nil {
+				return err
+			}
 		}
 		if hutu != "" {
-			b, _ := a.GetProperty("ByName", "普通")
-			d := b.ToIDispatch()
+			b, _ := o.ByName("普通")
+			if err != nil {
+				return err
+			}
 			i, _ := strconv.Atoi(hutu)
-			_, err = d.PutProperty("Value", i)
+			err = b.SetValue(i)
+			if err != nil {
+				return err
+			}
 		}
-		if genki != "" {
-			b, _ := a.GetProperty("ByName", "怒り")
-			d := b.ToIDispatch()
+		if ikari != "" {
+			b, _ := o.ByName("怒り")
+			if err != nil {
+				return err
+			}
 			i, _ := strconv.Atoi(ikari)
-			_, err = d.PutProperty("Value", i)
+			err = b.SetValue(i)
+			if err != nil {
+				return err
+			}
 		}
-		if genki != "" {
-			b, _ := a.GetProperty("ByName", "哀しみ")
-			d := b.ToIDispatch()
+		if kanasimi != "" {
+			b, _ := o.ByName("悲しみ")
+			if err != nil {
+				return err
+			}
 			i, _ := strconv.Atoi(kanasimi)
-			_, err = d.PutProperty("Value", i)
+			err = b.SetValue(i)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	return err
+	return nil
+}
+
+func splitMultiple(text string, seps []string) (ret []string) {
+	var list, next []string
+	list = append(list, text)
+	for _, sep := range seps {
+		for _, t := range list {
+			next = append(next, strings.Split(t, sep)...)
+		}
+		list = next
+		next = []string{}
+	}
+	var splittedText []string
+	for _, txt := range list {
+		t := []rune(txt)
+		if len(t) == 0 {
+			continue
+		}
+		l := 200
+		for i := 0; i < len(t); i += l {
+			var o []rune
+			if i+l <= len(t) {
+				o = t[i:(i + l)]
+			} else {
+				o = t[i:]
+			}
+			splittedText = append(splittedText, string(o))
+		}
+	}
+	for i := 0; i < len(splittedText); i++ {
+		var concated string
+		var j int
+		for j = i; j < i+5; j++ {
+			if j >= len(splittedText) {
+				break
+			}
+			if len([]rune(concated+splittedText[j])) >= 200 {
+				break
+			}
+		}
+		for _, s := range splittedText[i:j] {
+			concated += s + "。"
+		}
+		ret = append(ret, concated)
+		i = j
+	}
+	return ret
 }
 
 func (h speakHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.Query()
 	h.talker.setParameters(&url)
 	t := url.Get("text")
-	_, err := h.talker.GetProperty("Speak", t)
-	if err != nil {
-		w.WriteHeader(400)
-		log.Fatal(err)
+	texts := splitMultiple(t, []string{"。", " ", "　", "\n"})
+	fmt.Println("texts:", texts)
+	for _, t := range texts {
+		state, err := h.talker.Speak(t)
+		if err != nil {
+			w.WriteHeader(400)
+			log.Fatal(err)
+		}
+		err = state.Wait()
+		if err != nil {
+			w.WriteHeader(400)
+			log.Fatal(err)
+		}
 	}
+	w.WriteHeader(200)
 }
 
 type ttsHandler struct {
@@ -155,58 +222,31 @@ type ttsHandler struct {
 }
 
 func (h ttsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	url := r.URL.Query()
-	h.talker.setParameters(&url)
-	t := url.Get("text")
-	_, err := h.talker.GetProperty("OutputWaveToFile", t, "./tmp.wav")
-	if err != nil {
-		w.WriteHeader(400)
-		log.Fatal(err)
-	}
-	f, err := os.Open("./tmp.wav")
-	if err != nil {
-		w.WriteHeader(400)
-		log.Fatal(err)
-	}
-	w.Header().Set("Content-Type", "audio/wav")
-	w.WriteHeader(200)
-	io.Copy(w, f)
 }
 
 func main() {
-	var parameters = map[string]*parameter{
-		"cast":      {"Cast", "さとうささら"},
-		"speed":     {"Speed", 50},
-		"tone":      {"Tone", 50},
-		"alpha":     {"Alpha", 50},
-		"toneScale": {"ToneScale", 50},
-		"genki":     {"元気", 100},
-		"hutu":      {"普通", 0},
-		"ikari":     {"怒り", 0},
-		"kanasimi":  {"悲しみ", 0},
-	}
-	ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED|ole.COINIT_DISABLE_OLE1DDE)
-	talker, err := oleutil.CreateObject("CeVIO.Talk.RemoteService.Talker")
-	fmt.Println(talker.VTable().QueryInterface)
-	if err != nil {
-		log.Fatal("Initialization failed, Make sure you have installed CeVIO.")
-		log.Fatal(err)
+	apidiff := flag.String("api", "cevio", "cevio, or cevioai")
+	flag.Parse()
+	var apiname string
+	if *apidiff == "cevio" {
+		apiname = "CeVIO.Talk.RemoteService.Talker"
+	} else if *apidiff == "cevioai" {
+		apiname = "CeVIO.Talk.RemoteService2.Talker2"
+	} else {
+		println("set cevio or cevioai to --api")
 		os.Exit(1)
 	}
-	obj, err := talker.QueryInterface(ole.IID_IDispatch)
-	//fmt.Println(obj.GetSingleIDOfName("ToneScale"))
-	_, err = obj.PutProperty("Cast", "さとうささら")
-	if err != nil {
-		log.Fatal(err)
-	}
+	talker := cevioai.NewITalker2V40(apiname)
+	talker.SetCast("さとうささら")
+	fmt.Printf("connected to %s", apiname)
 	//speakはwindowsから直接音を出します．
 	//speak?cast={キャスト名}&text={テキスト}
-	handler := Talker{obj, &parameters}
+	handler := Talker{talker}
 	http.Handle("/speak", speakHandler{handler})
 	//ttsは音声データをwavで応答します．
 	//tts?cast={キャスト名}&text={テキスト}
 	http.Handle("/tts", ttsHandler{handler})
-	err = http.ListenAndServe(":8085", nil)
+	err := http.ListenAndServe(":8085", nil)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
