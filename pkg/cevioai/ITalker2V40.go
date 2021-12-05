@@ -1,7 +1,7 @@
 package cevioai
 
 import (
-	"gotti/cevigo/pkg/olewrapper"
+	"github.com/gotti/cevigo/pkg/olewrapper"
 	"log"
 
 	"github.com/go-ole/go-ole"

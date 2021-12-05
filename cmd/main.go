@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gotti/cevigo/pkg/cevioai"
+	"github.com/gotti/cevigo/pkg/cevioai"
 	"log"
 	"net/http"
 	"net/url"
