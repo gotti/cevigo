@@ -6,7 +6,7 @@ import (
 )
 
 func TestSpeed(t *testing.T) {
-	talker := NewITalker2V40("CeVIO.Talk.RemoteService2.Talker2")
+	talker := NewITalker2V40(CevioAiApiName)
 	defer talker.Release()
 	talker.SetCast("さとうささら")
 	r := rand.Int() % 100
@@ -20,7 +20,7 @@ func TestSpeed(t *testing.T) {
 	}
 }
 func TestVolume(t *testing.T) {
-	talker := NewITalker2V40("CeVIO.Talk.RemoteService2.Talker2")
+	talker := NewITalker2V40(CevioAiApiName)
 	talker.SetCast("さとうささら")
 	defer talker.Release()
 	r := rand.Int() % 100
@@ -35,7 +35,7 @@ func TestVolume(t *testing.T) {
 }
 
 func TestCasts(t *testing.T) {
-	talker := NewITalker2V40("CeVIO.Talk.RemoteService2.Talker2")
+	talker := NewITalker2V40(CevioAiApiName)
 	talker.SetCast("さとうささら")
 	defer talker.Release()
 	a, err := talker.GetAvailableCasts()
@@ -56,7 +56,7 @@ func TestCasts(t *testing.T) {
 }
 
 func TestGetComponents(t *testing.T) {
-	talker := NewITalker2V40("CeVIO.Talk.RemoteService2.Talker2")
+	talker := NewITalker2V40(CevioAiApiName)
 	talker.SetCast("さとうささら")
 	defer talker.Release()
 	c, err := talker.GetComponents()

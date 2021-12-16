@@ -229,9 +229,9 @@ func main() {
 	flag.Parse()
 	var apiname string
 	if *apidiff == "cevio" {
-		apiname = "CeVIO.Talk.RemoteService.Talker"
+		apiname = cevioai.CevioApiName
 	} else if *apidiff == "cevioai" {
-		apiname = "CeVIO.Talk.RemoteService2.Talker2"
+		apiname = cevioai.CevioAiApiName
 	} else {
 		println("set cevio or cevioai to --api")
 		os.Exit(1)
