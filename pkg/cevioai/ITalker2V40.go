@@ -124,6 +124,15 @@ func (t *ITalker2V40) Speak(value string) (*ISpeakingState2, error) {
 	return &d, nil
 }
 
+func (t *ITalker2V40) OutputWaveToFile(text string, path string) (bool, error) {
+	v, err := t.Talker.Talker.GetProperty("OutputWaveToFile", text, path)
+	if err != nil {
+		return false, err
+	}
+	d := v.Value().(bool)
+	return d, nil
+}
+
 type IStringArray struct {
 	dispatch *ole.IDispatch
 }
