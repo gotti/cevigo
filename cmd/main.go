@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -20,13 +19,6 @@ import (
 
 	pb "github.com/gotti/cevigo/spec"
 )
-
-type ttsHandler struct {
-	talker cevioai.ITalker2V40
-}
-
-func (h ttsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-}
 
 type ttsServer struct {
 	talker cevioai.ITalker2V40
