@@ -12,6 +12,11 @@ type ITalker2V40 struct {
 	*olewrapper.Talker
 }
 
+const (
+	CevioApiName   = "CeVIO.Talk.RemoteService.Talker"
+	CevioAiApiName = "CeVIO.Talk.RemoteService2.Talker2"
+)
+
 func NewITalker2V40(apiname string) ITalker2V40 {
 	ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED|ole.COINIT_DISABLE_OLE1DDE)
 	obj, err := oleutil.CreateObject(apiname)
