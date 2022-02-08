@@ -1,227 +1,137 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
 	"flag"
 	"fmt"
-	"github.com/gotti/cevigo/pkg/cevioai"
+	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"strconv"
-	"strings"
+	"path/filepath"
+	"sync"
+
+	"github.com/gotti/cevigo/pkg/cevioai"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	pb "github.com/gotti/cevigo/spec"
 )
 
-type Talker struct {
-	cevioai.ITalker2V40
-}
-
-type speakHandler struct {
-	talker Talker
-}
-
-var defaultParameters = map[string]int{
-	"Volume":    50,
-	"Speed":     50,
-	"Tone":      50,
-	"ToneScale": 50,
-}
-
-func (talker *Talker) setParameters(url *url.Values) error {
-	cast := url.Get("cast")
-	text := url.Get("text")
-	fmt.Println("Cast:", cast, "Text:", text)
-	speed := url.Get("speed")
-	volume := url.Get("volume")
-	talker.SetCast("さとうささら")
-	if volume != "" {
-		v, err := strconv.Atoi(volume)
-		if err != nil {
-			return err
-		}
-		err = talker.SetSpeed(v)
-		if err != nil {
-			log.Fatal(err)
-			return err
-		}
-	}
-	if speed != "" {
-		v, err := strconv.Atoi(speed)
-		if err != nil {
-			return err
-		}
-		err = talker.SetSpeed(v)
-		if err != nil {
-			log.Fatal(err)
-			return err
-		}
-	}
-	tone := url.Get("tone")
-	if tone != "" {
-		v, err := strconv.Atoi(tone)
-		if err != nil {
-			return err
-		}
-		err = talker.SetTone(v)
-		if err != nil {
-			log.Fatal(err)
-			return err
-		}
-	}
-	alpha := url.Get("alpha")
-	if alpha != "" {
-		v, err := strconv.Atoi(alpha)
-		if err != nil {
-			return err
-		}
-		err = talker.SetTone(v)
-		if err != nil {
-			log.Fatal(err)
-			return err
-		}
-	}
-	toneScale := url.Get("toneScale")
-	if toneScale != "" {
-		v, err := strconv.Atoi(toneScale)
-		if err != nil {
-			return err
-		}
-		err = talker.SetTone(v)
-		if err != nil {
-			log.Fatal(err)
-			return err
-		}
-	}
-	genki := url.Get("genki")
-	hutu := url.Get("hutu")
-	ikari := url.Get("ikari")
-	kanasimi := url.Get("kanasimi")
-	if genki != "" || hutu != "" || ikari != "" || kanasimi != "" {
-		o, err := talker.GetComponents()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if genki != "" {
-			b, err := o.ByName("元気")
-			if err != nil {
-				return err
-			}
-			i, _ := strconv.Atoi(genki)
-			err = b.SetValue(i)
-			if err != nil {
-				return err
-			}
-		}
-		if hutu != "" {
-			b, _ := o.ByName("普通")
-			if err != nil {
-				return err
-			}
-			i, _ := strconv.Atoi(hutu)
-			err = b.SetValue(i)
-			if err != nil {
-				return err
-			}
-		}
-		if ikari != "" {
-			b, _ := o.ByName("怒り")
-			if err != nil {
-				return err
-			}
-			i, _ := strconv.Atoi(ikari)
-			err = b.SetValue(i)
-			if err != nil {
-				return err
-			}
-		}
-		if kanasimi != "" {
-			b, _ := o.ByName("悲しみ")
-			if err != nil {
-				return err
-			}
-			i, _ := strconv.Atoi(kanasimi)
-			err = b.SetValue(i)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func splitMultiple(text string, seps []string) (ret []string) {
-	var list, next []string
-	list = append(list, text)
-	for _, sep := range seps {
-		for _, t := range list {
-			next = append(next, strings.Split(t, sep)...)
-		}
-		list = next
-		next = []string{}
-	}
-	var splittedText []string
-	for _, txt := range list {
-		t := []rune(txt)
-		if len(t) == 0 {
-			continue
-		}
-		l := 200
-		for i := 0; i < len(t); i += l {
-			var o []rune
-			if i+l <= len(t) {
-				o = t[i:(i + l)]
-			} else {
-				o = t[i:]
-			}
-			splittedText = append(splittedText, string(o))
-		}
-	}
-	for i := 0; i < len(splittedText); i++ {
-		var concated string
-		var j int
-		for j = i; j < i+5; j++ {
-			if j >= len(splittedText) {
-				break
-			}
-			if len([]rune(concated+splittedText[j])) >= 200 {
-				break
-			}
-		}
-		for _, s := range splittedText[i:j] {
-			concated += s + "。"
-		}
-		ret = append(ret, concated)
-		i = j
-	}
-	return ret
-}
-
-func (h speakHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	url := r.URL.Query()
-	h.talker.setParameters(&url)
-	t := url.Get("text")
-	texts := splitMultiple(t, []string{"。", " ", "　", "\n"})
-	fmt.Println("texts:", texts)
-	for _, t := range texts {
-		state, err := h.talker.Speak(t)
-		if err != nil {
-			w.WriteHeader(400)
-			log.Fatal(err)
-		}
-		err = state.Wait()
-		if err != nil {
-			w.WriteHeader(400)
-			log.Fatal(err)
-		}
-	}
-	w.WriteHeader(200)
-}
-
 type ttsHandler struct {
-	talker Talker
+	talker cevioai.ITalker2V40
 }
 
 func (h ttsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+}
+
+type ttsServer struct {
+	talker cevioai.ITalker2V40
+	pb.UnimplementedTtsServer
+	mtx sync.Mutex
+}
+
+func (s *ttsServer) applyParameters(p *pb.CevioTtsRequest) error {
+	s.talker.SetCast(p.Cast)
+	s.talker.SetVolume(int(p.Volume))
+	s.talker.SetSpeed(int(p.Speed))
+	s.talker.SetTone(int(p.Pitch))      //高さ
+	s.talker.SetAlpha(int(p.Alpha))     //声質
+	s.talker.SetToneScale(int(p.Intro)) //抑揚
+	return nil
+}
+
+func (s *ttsServer) speak(text string) ([]byte, error) {
+	buf := make([]byte, 16)
+	_, err := rand.Read(buf)
+	if err != nil {
+		return nil, fmt.Errorf("generating rand: %w", err)
+	}
+	fPath := fmt.Sprintf("%8x", buf)
+	fPath = filepath.Join(filepath.Join(os.TempDir(), "cevigo"), fPath)
+	err = os.MkdirAll(filepath.Dir(fPath), os.FileMode(0755))
+	if err != nil {
+		return nil, fmt.Errorf("making dir: %w", err)
+	}
+	b, err := s.talker.OutputWaveToFile(text, fPath)
+	if err != nil {
+		return nil, err
+	}
+	if !b {
+		return nil, fmt.Errorf("outputting bool false")
+	}
+	defer os.Remove(fPath)
+	if err != nil {
+		return nil, fmt.Errorf("outputting: %w", err)
+	}
+	f, err := os.Open(fPath)
+	audio, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	return audio, nil
+}
+
+func (s *ttsServer) CreateWav(ctx context.Context, req *pb.CevioTtsRequest) (*pb.CevioTtsResponse, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	if err := s.validateArgument(req); err != nil {
+		log.Printf("validating: %v", err)
+		return nil, err
+	}
+	if err := s.applyParameters(req); err != nil {
+		log.Printf("applying parameters: %v", err)
+		return nil, err
+	}
+	audio, err := s.speak(req.Text)
+	if err != nil {
+		log.Printf("speaking: %v", err)
+		return nil, err
+	}
+	return &pb.CevioTtsResponse{Audio: audio}, nil
+}
+
+func (s *ttsServer) validateArgument(req *pb.CevioTtsRequest) error {
+	casts, err := s.talker.GetAvailableCasts()
+	if err != nil {
+		return fmt.Errorf("get available casts: %w", err)
+	}
+	arr, err := casts.ToGoArray()
+	if !inArray(arr, req.Cast) {
+		return status.Errorf(codes.InvalidArgument, "invalid cast")
+	}
+	if err != nil {
+		return fmt.Errorf("available casts to go array: %w", err)
+	}
+	if req.Volume > 100 {
+		return status.Errorf(codes.InvalidArgument, "invalid volume")
+	}
+	if req.Speed > 100 {
+		return status.Errorf(codes.InvalidArgument, "invalid speed")
+	}
+	if req.Pitch > 100 {
+		return status.Errorf(codes.InvalidArgument, "invalid pitch")
+	}
+	if req.Alpha > 100 {
+		return status.Errorf(codes.InvalidArgument, "invalid alpha")
+	}
+	if req.Intro > 100 {
+		return status.Errorf(codes.InvalidArgument, "invalid intro")
+	}
+	//TODO: validate emotions before processing
+	return nil
+}
+
+func inArray(array []string, data string) bool {
+	for _, a := range array {
+		if a == data {
+			return true
+		}
+	}
+	return false
 }
 
 func main() {
@@ -237,18 +147,21 @@ func main() {
 		os.Exit(1)
 	}
 	talker := cevioai.NewITalker2V40(apiname)
-	talker.SetCast("さとうささら")
 	fmt.Printf("connected to %s", apiname)
-	//speakはwindowsから直接音を出します．
-	//speak?cast={キャスト名}&text={テキスト}
-	handler := Talker{talker}
-	http.Handle("/speak", speakHandler{handler})
-	//ttsは音声データをwavで応答します．
-	//tts?cast={キャスト名}&text={テキスト}
-	http.Handle("/tts", ttsHandler{handler})
-	err := http.ListenAndServe(":8085", nil)
+
+	lis, err := net.Listen("tcp", ":10000")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+	pb.RegisterTtsServer(s, &ttsServer{talker: talker})
+
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+
 	if err != nil {
 		log.Fatal(err)
-		os.Exit(1)
 	}
 }

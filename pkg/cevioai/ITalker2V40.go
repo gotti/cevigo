@@ -132,6 +132,21 @@ type IStringArray struct {
 	dispatch *ole.IDispatch
 }
 
+func (s IStringArray) ToGoArray() (ret []string, err error) {
+	l, err := s.GetLength()
+	if err != nil {
+		return make([]string, 0), err
+	}
+	for i := 0; i < l; i++ {
+		d, err := s.GetAt(i)
+		if err != nil {
+			return make([]string, 0), err
+		}
+		ret = append(ret, d)
+	}
+	return ret, nil
+}
+
 func (s IStringArray) GetLength() (int, error) {
 	v, err := s.dispatch.GetProperty("Length")
 	if err != nil {
