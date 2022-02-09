@@ -162,7 +162,7 @@ func main() {
 	talker := cevioai.NewITalker2V40(apiname)
 	log.Printf("connected to %s\n", apiname)
 
-	lis, err := net.Listen("tcp", ":10000")
+	lis, err := net.Listen("tcp", ":10001")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
