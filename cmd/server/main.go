@@ -55,7 +55,7 @@ func (s *ttsServer) speak(text string) ([]byte, error) {
 		return nil, err
 	}
 	if !b {
-		return nil, fmt.Errorf("outputting bool false")
+		return nil, fmt.Errorf("failed to outputting wav, please check the packet you sent")
 	}
 	defer os.Remove(fPath)
 	if err != nil {
