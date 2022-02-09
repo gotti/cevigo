@@ -21,8 +21,7 @@ func NewITalker2V40(apiname string) ITalker2V40 {
 	ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED|ole.COINIT_DISABLE_OLE1DDE)
 	obj, err := oleutil.CreateObject(apiname)
 	if err != nil {
-		log.Fatalf("Initialization failed, Make sure you have installed %s", apiname)
-		log.Fatal(err)
+		log.Fatalf("Initialization failed, Make sure you have installed %s, %s", apiname, err.Error())
 	}
 	talker, err := obj.QueryInterface(ole.IID_IDispatch)
 	if err != nil {

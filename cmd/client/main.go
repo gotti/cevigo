@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	pb "github.com/gotti/cevigo/spec"
@@ -13,18 +14,19 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", "localhost:10000", "server address")
+	addr := flag.String("addr", "localhost:10001", "server address")
 	flag.Parse()
 
+	fmt.Printf("connecting to %s\n", *addr)
 	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("failed to connect: %v", err)
+		log.Fatalf("failed to connect: %v\n", err)
 	}
 	defer conn.Close()
 
 	c := pb.NewTtsClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	r, err := c.CreateWav(ctx, &pb.CevioTtsRequest{
@@ -42,5 +44,8 @@ func main() {
 			"哀しみ": 0,
 		},
 	})
-	fmt.Println(r.Audio)
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.WriteFile("./out.wav", r.Audio, os.ModePerm)
 }

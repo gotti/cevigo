@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/go-ole/go-ole v1.2.5
+	github.com/go-yaml/yaml v2.1.0+incompatible
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
 )

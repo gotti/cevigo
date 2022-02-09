@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/go-yaml/yaml"
 	"github.com/gotti/cevigo/pkg/cevioai"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -23,7 +24,8 @@ import (
 type ttsServer struct {
 	talker cevioai.ITalker2V40
 	pb.UnimplementedTtsServer
-	mtx sync.Mutex
+	tokens tokens
+	mtx    sync.Mutex
 }
 
 func (s *ttsServer) applyParameters(p *pb.CevioTtsRequest) error {
@@ -83,10 +85,14 @@ func (s *ttsServer) CreateWav(ctx context.Context, req *pb.CevioTtsRequest) (*pb
 		log.Printf("speaking: %v", err)
 		return nil, err
 	}
+	log.Printf("successfully outputted: %s\n", req.Text)
 	return &pb.CevioTtsResponse{Audio: audio}, nil
 }
 
 func (s *ttsServer) validateArgument(req *pb.CevioTtsRequest) error {
+	if !validateToken(s.tokens, req.Token) {
+		return status.Errorf(codes.PermissionDenied, "invalid token")
+	}
 	casts, err := s.talker.GetAvailableCasts()
 	if err != nil {
 		return fmt.Errorf("get available casts: %w", err)
@@ -126,6 +132,15 @@ func inArray(array []string, data string) bool {
 	return false
 }
 
+func validateToken(ts tokens, t string) bool {
+	for _, ti := range ts {
+		if ti == t {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	apidiff := flag.String("api", "cevio", "cevio, or cevioai")
 	flag.Parse()
@@ -135,11 +150,17 @@ func main() {
 	} else if *apidiff == "cevioai" {
 		apiname = cevioai.CevioAiApiName
 	} else {
-		println("set cevio or cevioai to --api")
+		log.Println("set cevio or cevioai to --api")
 		os.Exit(1)
 	}
+
+	t, err := loadTokens("./tokens.yaml")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	talker := cevioai.NewITalker2V40(apiname)
-	fmt.Printf("connected to %s", apiname)
+	log.Printf("connected to %s\n", apiname)
 
 	lis, err := net.Listen("tcp", ":10000")
 	if err != nil {
@@ -147,7 +168,7 @@ func main() {
 	}
 
 	s := grpc.NewServer()
-	pb.RegisterTtsServer(s, &ttsServer{talker: talker})
+	pb.RegisterTtsServer(s, &ttsServer{talker: talker, tokens: t})
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
@@ -156,4 +177,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+type tokens []string
+
+func loadTokens(path string) (tokens, error) {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var ts tokens
+	if err := yaml.Unmarshal(buf, &ts); err != nil {
+		return nil, err
+	}
+	return ts, nil
 }
