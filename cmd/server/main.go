@@ -35,6 +35,19 @@ func (s *ttsServer) applyParameters(p *pb.CevioTtsRequest) error {
 	s.talker.SetTone(int(p.Pitch))      //高さ
 	s.talker.SetAlpha(int(p.Alpha))     //声質
 	s.talker.SetToneScale(int(p.Intro)) //抑揚
+	comp, err := s.talker.GetComponents()
+	if err != nil {
+		return fmt.Errorf("getting components: %w", err)
+	}
+	for k, p := range p.Emotions {
+		n, err := comp.ByName(k)
+		if err != nil {
+			return fmt.Errorf("getting single component: %w", err)
+		}
+		if err := n.SetValue(int(p)); err != nil {
+			return fmt.Errorf("setting value to component: %w", err)
+		}
+	}
 	return nil
 }
 
